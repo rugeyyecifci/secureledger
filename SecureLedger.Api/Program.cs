@@ -1,3 +1,6 @@
+using Microsoft.EntityFrameworkCore;
+using SecureLedger.Api.Data;
+
 // ============================================================
 // 1) UYGULAMAYI KURMA (BUILDER) AŞAMASI
 // ============================================================
@@ -20,6 +23,19 @@ var builder = WebApplication.CreateBuilder(args);
 // Daha fazla bilgi: https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+// Veritabanı bağlantı bilgisi KODDA veya appsettings.json'da DEĞİL, user-secrets'ta durur.
+// Geliştirme ortamında user-secrets otomatik yüklenir; değeri görmek için:
+//   dotnet user-secrets list
+// Bulunamazsa uygulama hemen, açıklayıcı bir hatayla durur.
+var connectionString = builder.Configuration.GetConnectionString("SecureLedgerDb")
+    ?? throw new InvalidOperationException(
+        "ConnectionStrings:SecureLedgerDb bulunamadı. 'dotnet user-secrets set' ile ekleyin.");
+
+// DbContext'i DI konteynerine kaydeder; UseNpgsql: PostgreSQL sağlayıcısını kullan.
+// Her HTTP isteği kendi DbContext örneğini alır (scoped).
+builder.Services.AddDbContext<SecureLedgerDbContext>(options =>
+    options.UseNpgsql(connectionString));
+
 // Build(): Bütün ayarlar ve servisler tamamlandı, artık gerçek uygulama nesnesini oluştur.
 // Bu satırdan sonra builder.Services'e yeni servis EKLENEMEZ.
 var app = builder.Build();
@@ -40,6 +56,30 @@ if (app.Environment.IsDevelopment())
     // Sadece geliştirme ortamında açılır; canlı ortamda (Production)
     // API yapınızı dışarıya göstermemek için kapalı kalır.
     app.MapOpenApi();
+
+    // GEÇİCİ TEST ENDPOINT'İ: Veritabanı bağlantısını doğrulamak için.
+    // Sadece COUNT sorgusu çalıştırır, hiçbir veriyi değiştirmez.
+    // Sadece Development ortamında açılır. İlk gerçek endpoint yazılınca silinecek.
+    app.MapGet("/api/dev/db-status", async (SecureLedgerDbContext db) =>
+    {
+        // COUNT sütun adlarını kullanmadığı için eşlemeyi doğrulamaz.
+        // Take(0): tüm sütunları SELECT eden ama hiç satır döndürmeyen sorgu.
+        // Bir sütun adı yanlış eşlendiyse PostgreSQL burada hata verir.
+        await db.Users.Take(0).ToListAsync();
+        await db.Customers.Take(0).ToListAsync();
+        await db.Transactions.Take(0).ToListAsync();
+        await db.AuditLogs.Take(0).ToListAsync();
+
+        return new
+        {
+            db.Database.GetDbConnection().Database,
+            Users = await db.Users.CountAsync(),
+            Customers = await db.Customers.CountAsync(),
+            Transactions = await db.Transactions.CountAsync(),
+            AuditLogs = await db.AuditLogs.CountAsync()
+        };
+    })
+    .WithName("GetDbStatus");
 }
 
 // HTTP ile gelen istekleri otomatik olarak HTTPS'e yönlendirir.
