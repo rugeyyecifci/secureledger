@@ -16,6 +16,7 @@ A small ASP.NET Core Web API that shows how to store financial records securely 
 | Layer | Technology |
 |---|---|
 | API | ASP.NET Core Minimal API, .NET 10, C# |
+| Front end | React 19 + Vite (plain JavaScript) |
 | Database | PostgreSQL (tested with 18) |
 | Data access | Entity Framework Core + Npgsql |
 | Cryptography | .NET `System.Security.Cryptography` (`AesGcm`, `HMACSHA256`), ASP.NET Core `PasswordHasher` |
@@ -23,7 +24,7 @@ A small ASP.NET Core Web API that shows how to store financial records securely 
 ## How it works
 
 ```
-Client ── HTTP + Bearer token ──> ASP.NET Core API ── EF Core ──> PostgreSQL
+React UI ── HTTP + Bearer token ──> ASP.NET Core API ── EF Core ──> PostgreSQL
                                    ├─ Encryption.cs   AES-256-GCM for phone / address
                                    ├─ HashChain.cs    HMAC-SHA256 seal for each transaction
                                    └─ PasswordHasher  PBKDF2 for user passwords
@@ -57,6 +58,7 @@ SecureLedger.Api/Database.cs   Entities (User, Customer, Transaction, AuditLog) 
 SecureLedger.Api/Encryption.cs AES-256-GCM encrypt / decrypt
 SecureLedger.Api/HashChain.cs  HMAC-SHA256 hash calculation
 SecureLedger.Tests/            Unit tests for encryption and hash chain (xUnit)
+SecureLedger.Web/src/          React UI: login, customers, transactions, chain check
 ```
 
 ## API
@@ -73,7 +75,7 @@ SecureLedger.Tests/            Unit tests for encryption and hash chain (xUnit)
 
 ## Run locally
 
-Requirements: [.NET SDK 10](https://dotnet.microsoft.com/download), PostgreSQL, `openssl`, `jq` (for the examples).
+Requirements: [.NET SDK 10](https://dotnet.microsoft.com/download), PostgreSQL, [Node.js 20+](https://nodejs.org), `openssl`, `jq` (for the examples).
 
 ```bash
 # 1. Database
@@ -86,9 +88,17 @@ dotnet user-secrets set "ConnectionStrings:SecureLedgerDb" "Host=localhost;Port=
 dotnet user-secrets set "Encryption:Key" "$(openssl rand -base64 32)"
 dotnet user-secrets set "HashChain:Key"  "$(openssl rand -base64 32)"
 
-# 3. Start
+# 3. Start the API
 dotnet run        # http://localhost:5059
+
+# 4. Start the UI (second terminal, from the repository root)
+cd SecureLedger.Web
+npm install
+npm run dev       # open http://localhost:5173
 ```
+
+The UI forwards `/api` requests to the API, so no CORS setup is needed. The login token is kept
+in memory only, so refreshing the page logs you out (it is never written to browser storage).
 
 Try it:
 
@@ -152,4 +162,3 @@ Known limits of this demo, stated on purpose:
 ## Roadmap
 
 - Audit log for non-transaction events (customer created, login)
-- React front end

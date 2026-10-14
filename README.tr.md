@@ -16,6 +16,7 @@ Finansal kayıtları PostgreSQL'de güvenli şekilde saklamayı gösteren küç�
 | Katman | Teknoloji |
 |---|---|
 | API | ASP.NET Core Minimal API, .NET 10, C# |
+| Arayüz | React 19 + Vite (düz JavaScript) |
 | Veritabanı | PostgreSQL (18 ile test edildi) |
 | Veri erişimi | Entity Framework Core + Npgsql |
 | Kriptografi | .NET `System.Security.Cryptography` (`AesGcm`, `HMACSHA256`), ASP.NET Core `PasswordHasher` |
@@ -23,7 +24,7 @@ Finansal kayıtları PostgreSQL'de güvenli şekilde saklamayı gösteren küç�
 ## Nasıl çalışır?
 
 ```
-İstemci ── HTTP + Bearer token ──> ASP.NET Core API ── EF Core ──> PostgreSQL
+React arayüz ── HTTP + Bearer token ──> ASP.NET Core API ── EF Core ──> PostgreSQL
                                     ├─ Encryption.cs   Telefon / adres için AES-256-GCM
                                     ├─ HashChain.cs    Her işlem için HMAC-SHA256 mührü
                                     └─ PasswordHasher  Kullanıcı şifreleri için PBKDF2
@@ -57,6 +58,7 @@ SecureLedger.Api/Database.cs   Entity'ler (User, Customer, Transaction, AuditLog
 SecureLedger.Api/Encryption.cs AES-256-GCM şifreleme / çözme
 SecureLedger.Api/HashChain.cs  HMAC-SHA256 mühür hesaplama
 SecureLedger.Tests/            Şifreleme ve hash zinciri için birim testleri (xUnit)
+SecureLedger.Web/src/          React arayüz: giriş, müşteriler, işlemler, zincir kontrolü
 ```
 
 ## API
@@ -73,7 +75,7 @@ SecureLedger.Tests/            Şifreleme ve hash zinciri için birim testleri (
 
 ## Yerelde çalıştırma
 
-Gerekenler: [.NET SDK 10](https://dotnet.microsoft.com/download), PostgreSQL, `openssl`, `jq` (örnekler için).
+Gerekenler: [.NET SDK 10](https://dotnet.microsoft.com/download), PostgreSQL, [Node.js 20+](https://nodejs.org), `openssl`, `jq` (örnekler için).
 
 ```bash
 # 1. Veritabanı
@@ -86,9 +88,17 @@ dotnet user-secrets set "ConnectionStrings:SecureLedgerDb" "Host=localhost;Port=
 dotnet user-secrets set "Encryption:Key" "$(openssl rand -base64 32)"
 dotnet user-secrets set "HashChain:Key"  "$(openssl rand -base64 32)"
 
-# 3. Başlat
+# 3. API'yi başlat
 dotnet run        # http://localhost:5059
+
+# 4. Arayüzü başlat (ikinci terminalde, repo ana klasöründen)
+cd SecureLedger.Web
+npm install
+npm run dev       # http://localhost:5173 adresini açın
 ```
+
+Arayüz `/api` isteklerini API'ye iletir, bu yüzden CORS ayarı gerekmez. Giriş anahtarı sadece
+bellekte tutulur; sayfa yenilenince tekrar giriş gerekir (tarayıcı deposuna hiç yazılmaz).
 
 Deneyin:
 
@@ -152,4 +162,3 @@ Bu demonun bilinen sınırları, bilerek belirtilmiştir:
 ## Yol haritası
 
 - İşlem dışı olaylar için audit log (müşteri eklendi, giriş yapıldı)
-- React arayüzü

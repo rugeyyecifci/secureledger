@@ -1,0 +1,74 @@
+/* Sade, tek sayfalık görünüm. Renkler en üstte; koyu tema otomatik. */
+:root {
+  --bg: #f5f6f8;
+  --card: #ffffff;
+  --text: #1f2328;
+  --muted: #656d76;
+  --border: #d0d7de;
+  --accent: #1f6feb;
+  --ok: #1a7f37;
+  --error: #cf222e;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --text: #e6edf3;
+    --muted: #8d96a0;
+    --border: #30363d;
+    --accent: #4493f8;
+    --ok: #3fb950;
+    --error: #f85149;
+  }
+}
+
+body { margin: 0; }
+
+main { max-width: 1000px; margin: 0 auto; padding: 16px; }
+
+header { display: flex; justify-content: space-between; align-items: center; }
+h1 { font-size: 1.5rem; }
+h2 { margin-top: 0; font-size: 1.15rem; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.narrow { max-width: 360px; margin: 40px auto; }
+
+.stack { display: flex; flex-direction: column; gap: 10px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.row input, .row select { flex: 1 1 140px; }
+
+input, select, button {
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--text);
+}
+button { background: var(--accent); border-color: var(--accent); color: #fff; cursor: pointer; }
+button.link { background: none; border: none; color: var(--accent); padding: 8px 0; }
+
+.hint { color: var(--muted); font-size: 0.9rem; margin-top: -6px; }
+.error { color: var(--error); }
+.ok { color: var(--ok); }
+.verify { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--border); }
+th { color: var(--muted); font-weight: 600; }
+.amount { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Dar ekranda tablo yatay kaydırılsın, sayfa taşmasın */
+@media (max-width: 640px) {
+  table { display: block; overflow-x: auto; }
+}
