@@ -56,6 +56,7 @@ SecureLedger.Api/Program.cs    Settings and all endpoints
 SecureLedger.Api/Database.cs   Entities (User, Customer, Transaction, AuditLog) and DbContext
 SecureLedger.Api/Encryption.cs AES-256-GCM encrypt / decrypt
 SecureLedger.Api/HashChain.cs  HMAC-SHA256 hash calculation
+SecureLedger.Tests/            Unit tests for encryption and hash chain (xUnit)
 ```
 
 ## API
@@ -110,6 +111,15 @@ curl $API/api/audit/verify -H "Authorization: Bearer $TOKEN"
 # {"valid":true,"checkedPages":1}
 ```
 
+Run the unit tests from the repository root (no database needed):
+
+```bash
+dotnet test
+```
+
+They check that encrypted data decrypts correctly, that changed bytes or a wrong key are rejected,
+and that changing an amount or the previous hash changes the seal.
+
 To see tamper detection, change an amount directly in the database
 (`UPDATE transactions SET amount = 9999 WHERE id = 1;`) and call `/api/audit/verify` again.
 
@@ -142,5 +152,4 @@ Known limits of this demo, stated on purpose:
 ## Roadmap
 
 - Audit log for non-transaction events (customer created, login)
-- Automated tests
 - React front end

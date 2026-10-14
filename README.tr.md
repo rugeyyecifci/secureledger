@@ -56,6 +56,7 @@ SecureLedger.Api/Program.cs    Ayarlar ve bütün endpoint'ler
 SecureLedger.Api/Database.cs   Entity'ler (User, Customer, Transaction, AuditLog) ve DbContext
 SecureLedger.Api/Encryption.cs AES-256-GCM şifreleme / çözme
 SecureLedger.Api/HashChain.cs  HMAC-SHA256 mühür hesaplama
+SecureLedger.Tests/            Şifreleme ve hash zinciri için birim testleri (xUnit)
 ```
 
 ## API
@@ -110,6 +111,15 @@ curl $API/api/audit/verify -H "Authorization: Bearer $TOKEN"
 # {"valid":true,"checkedPages":1}
 ```
 
+Birim testlerini repo ana klasöründen çalıştırın (veritabanı gerekmez):
+
+```bash
+dotnet test
+```
+
+Testler şunları kontrol eder: Şifreli veri doğru çözülüyor mu, değiştirilmiş veri veya yanlış anahtar
+reddediliyor mu, tutar ya da önceki mühür değişince mühür değişiyor mu.
+
 Değişiklik tespitini görmek için veritabanında bir tutarı doğrudan değiştirin
 (`UPDATE transactions SET amount = 9999 WHERE id = 1;`) ve `/api/audit/verify` isteğini tekrar gönderin.
 
@@ -142,5 +152,4 @@ Bu demonun bilinen sınırları, bilerek belirtilmiştir:
 ## Yol haritası
 
 - İşlem dışı olaylar için audit log (müşteri eklendi, giriş yapıldı)
-- Otomatik testler
 - React arayüzü

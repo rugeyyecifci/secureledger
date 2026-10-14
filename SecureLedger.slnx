@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="SecureLedger.Api/SecureLedger.Api.csproj" />
+  <Project Path="SecureLedger.Tests/SecureLedger.Tests.csproj" />
+</Solution>
