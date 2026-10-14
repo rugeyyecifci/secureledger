@@ -122,6 +122,7 @@ Değişiklik tespitini görmek için veritabanında bir tutarı doğrudan deği�
 | Biri ortadan bir audit satırı siler | Sonraki satırın `previous_hash` değeri artık tutmaz; zincir kopuk olarak bildirilir. |
 | Biri yeni ve geçerli bir mühür üretmeye çalışır | Veritabanında bulunmayan HMAC anahtarı olmadan mümkün değil. |
 | API'ye girişsiz erişim | Kayıt ve giriş dışındaki bütün endpoint'ler `401` döndürür. |
+| Şifre tahmini (brute force) | Kayıt ve giriş, IP adresi başına dakikada 5 denemeyle sınırlıdır (sonrası `429`). |
 | Sırların GitHub'a sızması | Anahtarlar ve bağlantı bilgisi user-secrets'ta, repoda değil. |
 
 ## Güvenlik sınırları
@@ -134,13 +135,12 @@ Bu demonun bilinen sınırları, bilerek belirtilmiştir:
 - **user-secrets sadece geliştirme içindir.** Diskte düz bir JSON dosyasıdır. Gerçek sistemde key vault veya HSM kullanılır.
 - **AES-GCM uzunluğu gizlemez.** Şifreli veri, düz metinle aynı uzunluktadır.
 - **Sadece telefon ve adres şifrelidir.** Müşteri adı ve e-postası düz metin saklanır.
-- **Girişte deneme sınırı yok**, bu yüzden şifreler sınırsız denenebilir. Kayıt herkese açıktır.
+- **Deneme sınırı IP başınadır ve bellekte tutulur.** Çok sayıda IP adresi olan biri yine yavaşça deneyebilir, uygulama yeniden başlayınca sayaç sıfırlanır, proxy arkasında bütün kullanıcılar aynı IP'yi paylaşabilir. Kayıt herkese açıktır.
 - **Anahtar değişimi (key rotation) henüz yok.** `encryption_key_version` saklanıyor ama sadece 1. sürüm var.
 - **Tek sunucu varsayımı.** Hash zinciri yazma kilidi bellekte tutuluyor.
 
 ## Yol haritası
 
 - İşlem dışı olaylar için audit log (müşteri eklendi, giriş yapıldı)
-- Girişte deneme sınırı (rate limiting)
 - Otomatik testler
 - React arayüzü

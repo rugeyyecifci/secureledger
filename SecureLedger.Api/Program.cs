@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -29,6 +30,20 @@ builder.Services.AddAuthentication(BearerTokenDefaults.AuthenticationScheme).Add
 builder.Services.AddAuthorization(options =>
     options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 
+// Deneme sınırı: Aynı IP adresinden 1 dakikada en fazla 5 giriş/kayıt denemesi.
+// Böylece biri şifreyi deneye deneye tahmin edemez. 6. deneme 429 hatası alır.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter(
+        partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",   // Her IP'nin sayacı ayrı
+        factory: _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5,                    // En fazla 5 deneme
+            Window = TimeSpan.FromMinutes(1)    // 1 dakika içinde
+        }));
+});
+
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
@@ -41,6 +56,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseAuthentication();   // İstekteki giriş anahtarını oku: "Bu kim?"
 app.UseAuthorization();    // Kurala bak: "Girmesine izin var mı?"
+app.UseRateLimiter();      // Deneme sayısını say: "Çok mu deniyor?"
 
 
 // ---------- 2) ENDPOINT'LER ----------
@@ -68,7 +84,7 @@ app.MapPost("/api/auth/register", async (RegisterRequest input, AppDbContext db,
     await db.SaveChangesAsync();
 
     return Results.Ok(new { user.Id, Message = "Kayıt başarılı." });
-}).AllowAnonymous();
+}).AllowAnonymous().RequireRateLimiting("auth");
 
 // Giriş yap: e-posta ve şifre doğruysa bir giriş anahtarı (token) verilir.
 app.MapPost("/api/auth/login", async (LoginRequest input, AppDbContext db, PasswordHasher<User> hasher) =>
@@ -91,7 +107,7 @@ app.MapPost("/api/auth/login", async (LoginRequest input, AppDbContext db, Passw
 
     // Cevap: { accessToken: "...", expiresIn: 3600, ... }
     return Results.SignIn(new ClaimsPrincipal(identity), authenticationScheme: BearerTokenDefaults.AuthenticationScheme);
-}).AllowAnonymous();
+}).AllowAnonymous().RequireRateLimiting("auth");
 
 // Müşterileri listele: telefon ve adresi çözerek göster.
 app.MapGet("/api/customers", async (AppDbContext db, Encryption enc) =>

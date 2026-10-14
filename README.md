@@ -122,6 +122,7 @@ To see tamper detection, change an amount directly in the database
 | Someone deletes an audit row in the middle | The next row's `previous_hash` no longer matches; the chain is reported as broken. |
 | Someone forges a new valid hash | Not possible without the HMAC key, which is not in the database. |
 | Unauthenticated access to the API | All endpoints except register / login return `401`. |
+| Password guessing (brute force) | Register / login are limited to 5 attempts per minute per IP address (`429` after that). |
 | Secrets leak through GitHub | Keys and connection string are in user-secrets, not in the repository. |
 
 ## Security limitations
@@ -134,13 +135,12 @@ Known limits of this demo, stated on purpose:
 - **user-secrets is for development only.** It is a plain JSON file on disk. Production would use a key vault or HSM.
 - **AES-GCM does not hide length.** The ciphertext is as long as the plaintext.
 - **Only phone and address are encrypted.** Customer name and email are stored in plain text.
-- **No login rate limiting**, so passwords can be guessed without limit. Registration is open to anyone.
+- **Rate limiting is per IP and in memory.** An attacker with many IP addresses can still guess slowly, the counter resets when the app restarts, and behind a proxy all users may share one IP. Registration is open to anyone.
 - **No key rotation yet.** `encryption_key_version` is stored, but only version 1 exists.
 - **Single instance only.** The hash chain write lock is in memory.
 
 ## Roadmap
 
 - Audit log for non-transaction events (customer created, login)
-- Login rate limiting
 - Automated tests
 - React front end
