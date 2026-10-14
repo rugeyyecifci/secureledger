@@ -2,6 +2,10 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// GEÇİCİ: Login henüz yok. O gelene kadar her işlemi veritabanındaki
+// test kullanıcısı (users tablosunda id = 1, "Test User") yapmış sayılır.
+const long TemporaryUserId = 1;
+
 // ---------- 1) AYARLAR ----------
 
 // Veritabanı bağlantısı. Bilgi user-secrets'tan okunur (koda yazılmaz).
@@ -10,6 +14,9 @@ builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connect
 
 // Şifreleme servisi. Uygulama boyunca tek bir tane kullanılır.
 builder.Services.AddSingleton<Encryption>();
+
+// Hash zinciri (mühür) servisi. Uygulama boyunca tek bir tane kullanılır.
+builder.Services.AddSingleton<HashChain>();
 
 builder.Services.AddOpenApi();
 
@@ -70,8 +77,8 @@ app.MapGet("/api/transactions", async (AppDbContext db) =>
     return await db.Transactions.OrderBy(t => t.Id).ToListAsync();
 });
 
-// İşlem ekle (ödeme veya iade).
-app.MapPost("/api/transactions", async (NewTransaction input, AppDbContext db) =>
+// İşlem ekle (ödeme veya iade) ve deftere mühürlü bir sayfa yaz.
+app.MapPost("/api/transactions", async (NewTransaction input, AppDbContext db, HashChain chain) =>
 {
     if (input.Amount <= 0 || input.Amount >= 1_000_000_000_000m)
         return Results.BadRequest("Tutar 0'dan büyük ve 1 trilyondan küçük olmalı.");
@@ -98,10 +105,64 @@ app.MapPost("/api/transactions", async (NewTransaction input, AppDbContext db) =
         Description = input.Description
     };
 
-    db.Transactions.Add(transaction);
-    await db.SaveChangesAsync();   // Veritabanına yaz
+    // Sayfalar sırayla yazılsın (bkz. HashChain.WriteLock)
+    await chain.WriteLock.WaitAsync();
+    try
+    {
+        // İşlem ve defter sayfası birlikte kaydedilir: biri olmazsa ikisi de iptal.
+        using var dbTransaction = await db.Database.BeginTransactionAsync();
+
+        db.Transactions.Add(transaction);
+        await db.SaveChangesAsync();   // İşlemi yaz (id ve tarih veritabanından gelir)
+
+        // Defterdeki son sayfanın mührü = bu sayfanın "önceki mührü"
+        var previousHash = await db.AuditLogs
+            .OrderByDescending(a => a.Id)
+            .Select(a => a.CurrentHash)
+            .FirstOrDefaultAsync();
+
+        db.AuditLogs.Add(new AuditLog
+        {
+            TransactionId = transaction.Id,
+            UserId = TemporaryUserId,
+            Action = "CREATE",
+            PreviousHash = previousHash,
+            CurrentHash = chain.ComputeHash(transaction, TemporaryUserId, "CREATE", previousHash)
+        });
+        await db.SaveChangesAsync();   // Sayfayı yaz
+
+        await dbTransaction.CommitAsync();   // İkisini birden onayla
+    }
+    finally
+    {
+        chain.WriteLock.Release();
+    }
 
     return Results.Ok(new { transaction.Id, Message = "İşlem eklendi." });
+});
+
+// Defteri baştan sona kontrol et: zincir sağlam mı?
+app.MapGet("/api/audit/verify", async (AppDbContext db, HashChain chain) =>
+{
+    var pages = await db.AuditLogs.OrderBy(a => a.Id).ToListAsync();
+    string? expectedPrevious = null;   // İlk sayfanın "önceki mührü" boş olmalı
+
+    foreach (var page in pages)
+    {
+        // 1) Bu sayfa gerçekten bir önceki sayfaya mı bağlı? (Arada sayfa silinmiş mi?)
+        if (page.PreviousHash != expectedPrevious)
+            return Results.Ok(new { Valid = false, BrokenAtAuditId = page.Id, Reason = "Zincir kopmuş: önceki sayfa silinmiş ya da değiştirilmiş." });
+
+        // 2) İşlemin bugünkü hâliyle mührü yeniden hesapla. Tutmuyorsa işlem değiştirilmiş.
+        var transaction = await db.Transactions.FindAsync(page.TransactionId);
+        if (transaction == null ||
+            chain.ComputeHash(transaction, page.UserId, page.Action, page.PreviousHash) != page.CurrentHash)
+            return Results.Ok(new { Valid = false, BrokenAtAuditId = page.Id, Reason = $"Mühür tutmuyor: {page.TransactionId} numaralı işlem değiştirilmiş." });
+
+        expectedPrevious = page.CurrentHash;
+    }
+
+    return Results.Ok(new { Valid = true, CheckedPages = pages.Count });
 });
 
 
