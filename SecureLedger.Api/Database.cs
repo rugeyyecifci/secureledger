@@ -29,9 +29,37 @@ public class Customer
     public DateTime CreatedAt { get; set; }          // Veritabanı otomatik verir
 }
 
+// Veritabanındaki "transactions" tablosunun C# hâli: bir müşterinin ödeme veya iadesi.
+[Table("transactions")]
+public class Transaction
+{
+    [Column("id")]
+    public long Id { get; set; }                     // Veritabanı otomatik verir
+
+    [Column("customer_id")]
+    public long CustomerId { get; set; }             // Hangi müşteriye ait
+
+    [Column("amount")]
+    public decimal Amount { get; set; }              // Para için her zaman decimal
+
+    [Column("currency")]
+    public string Currency { get; set; } = "TRY";
+
+    [Column("transaction_type")]
+    public string Type { get; set; } = "";           // "PAYMENT" veya "REFUND"
+
+    [Column("description")]
+    public string? Description { get; set; }
+
+    [Column("created_at")]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    public DateTime CreatedAt { get; set; }          // Veritabanı otomatik verir
+}
+
 // Uygulama ile veritabanı arasındaki bağlantı.
-// db.Customers yazınca "customers" tablosuna ulaşırız.
+// db.Customers yazınca "customers" tablosuna, db.Transactions yazınca "transactions" tablosuna ulaşırız.
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
     public DbSet<Customer> Customers => Set<Customer>();
+    public DbSet<Transaction> Transactions => Set<Transaction>();
 }

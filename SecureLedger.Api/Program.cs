@@ -64,9 +64,50 @@ app.MapPost("/api/customers", async (NewCustomer input, AppDbContext db, Encrypt
     return Results.Ok(new { customer.Id, Message = "Müşteri eklendi." });
 });
 
+// İşlemleri listele.
+app.MapGet("/api/transactions", async (AppDbContext db) =>
+{
+    return await db.Transactions.OrderBy(t => t.Id).ToListAsync();
+});
+
+// İşlem ekle (ödeme veya iade).
+app.MapPost("/api/transactions", async (NewTransaction input, AppDbContext db) =>
+{
+    if (input.Amount <= 0 || input.Amount >= 1_000_000_000_000m)
+        return Results.BadRequest("Tutar 0'dan büyük ve 1 trilyondan küçük olmalı.");
+
+    if (input.Amount != Math.Round(input.Amount, 2))
+        return Results.BadRequest("Tutarda virgülden sonra en fazla 2 basamak olabilir.");
+
+    if (input.Type != "PAYMENT" && input.Type != "REFUND")
+        return Results.BadRequest("Tür PAYMENT veya REFUND olmalı.");
+
+    var currency = input.Currency ?? "TRY";   // Para birimi verilmezse TRY
+    if (currency.Length != 3)
+        return Results.BadRequest("Para birimi 3 harf olmalı (ör. TRY, USD).");
+
+    if (!await db.Customers.AnyAsync(c => c.Id == input.CustomerId))
+        return Results.NotFound("Müşteri bulunamadı.");
+
+    var transaction = new Transaction
+    {
+        CustomerId = input.CustomerId,
+        Amount = input.Amount,
+        Currency = currency,
+        Type = input.Type,
+        Description = input.Description
+    };
+
+    db.Transactions.Add(transaction);
+    await db.SaveChangesAsync();   // Veritabanına yaz
+
+    return Results.Ok(new { transaction.Id, Message = "İşlem eklendi." });
+});
+
 
 app.Run();
 
 
 // POST isteğiyle gelen bilgiler.
 record NewCustomer(string FullName, string? Email, string? Phone, string? Address);
+record NewTransaction(long CustomerId, decimal Amount, string Type, string? Currency, string? Description);
