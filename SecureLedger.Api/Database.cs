@@ -1,6 +1,27 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 
+// Veritabanındaki "users" tablosunun C# hâli: sisteme giriş yapan kişiler.
+[Table("users")]
+public class User
+{
+    [Column("id")]
+    public long Id { get; set; }                     // Veritabanı otomatik verir
+
+    [Column("full_name")]
+    public string FullName { get; set; } = "";
+
+    [Column("email")]
+    public string Email { get; set; } = "";
+
+    [Column("password_hash")]
+    public string PasswordHash { get; set; } = "";   // Şifrenin kendisi DEĞİL, hash'i
+
+    [Column("created_at")]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    public DateTime CreatedAt { get; set; }          // Veritabanı otomatik verir
+}
+
 // Veritabanındaki "customers" tablosunun C# hâli.
 // [Column("...")] : C#'taki isim ile tablodaki sütun adını eşleştirir.
 [Table("customers")]
@@ -85,9 +106,10 @@ public class AuditLog
 }
 
 // Uygulama ile veritabanı arasındaki bağlantı.
-// db.Customers -> "customers", db.Transactions -> "transactions", db.AuditLogs -> "audit_logs"
+// db.Users -> "users", db.Customers -> "customers", db.Transactions -> "transactions", db.AuditLogs -> "audit_logs"
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
+    public DbSet<User> Users => Set<User>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Transaction> Transactions => Set<Transaction>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();

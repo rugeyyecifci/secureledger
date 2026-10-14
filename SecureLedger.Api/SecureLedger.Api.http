@@ -1,6 +1,25 @@
 @SecureLedger.Api_HostAddress = http://localhost:5059
 
-GET {{SecureLedger.Api_HostAddress}}/api/customers
-Accept: application/json
+### 1) Giriş yap. Cevaptaki accessToken değerini aşağıdaki @token satırına yapıştırın.
+POST {{SecureLedger.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "demo@example.com",
+  "password": "SIFRENIZ"
+}
 
 ###
+@token = BURAYA_ACCESS_TOKEN
+
+### 2) Müşterileri listele (giriş gerekli)
+GET {{SecureLedger.Api_HostAddress}}/api/customers
+Authorization: Bearer {{token}}
+
+### 3) İşlemleri listele (giriş gerekli)
+GET {{SecureLedger.Api_HostAddress}}/api/transactions
+Authorization: Bearer {{token}}
+
+### 4) Defteri kontrol et (giriş gerekli)
+GET {{SecureLedger.Api_HostAddress}}/api/audit/verify
+Authorization: Bearer {{token}}
